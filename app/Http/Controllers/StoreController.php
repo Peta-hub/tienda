@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class StoreController extends Controller
      */
     public function index()
     {
-        return view('store.index');
+        $products = Product::latest()->paginate(5);
+        return view('store.index', compact('products', $products));
     }
 
     /**
