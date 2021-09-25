@@ -6,6 +6,7 @@ use App\Models\Product;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\Request;
+use Intervention\Image\Facades\Image;
 
 class StoreController extends Controller
 {
@@ -34,11 +35,51 @@ class StoreController extends Controller
      * Store a newly created resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(Request $request)
+    public function store(Request $request): \Illuminate\Http\RedirectResponse
     {
-        //
+        $request->validate([
+            'name' => 'required|max:255',
+            'price' => 'required|numeric',
+            'image' => 'required',
+            'image.*' => 'image|mimes:jpeg,png,jpg,gif,svg'
+        ]);
+
+        $product = new Product;
+
+        $product->name = $request->name;
+        $product->price = $request->price;
+        $product->stock = $request->stock;
+        $product->description = $request->description;
+        $product->status = $request->status;
+
+        if ($request->warranty == "yes") {
+            $product->warranty = true;
+        } else {
+            $product->warranty = false;
+        }
+
+        $product->save();
+
+        foreach ($request->image as $image) {
+
+            $name = $image->getClientOriginalName().'.'.$image->getClientOriginalExtension();
+            $url =  $image->getClientOriginalName().time().'.'.$image->getClientOriginalExtension();
+
+            Image::make($image)->save(public_path('images/'.$url));
+
+            $newImage = new \App\Models\Image;
+
+            $newImage->name = $name;
+            $newImage->url = $url;
+            $newImage->product_id = $product->id;
+
+            $newImage->save();
+        }
+
+        return redirect()->route('store.index');
+
     }
 
     /**
@@ -60,7 +101,8 @@ class StoreController extends Controller
      */
     public function edit($id)
     {
-        return view('store.edit', compact($id));
+        $product = Product::findOrFail($id);
+        return view('store.edit', compact('product', $product));
     }
 
     /**
