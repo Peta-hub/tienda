@@ -21,7 +21,7 @@ class CreateUsersTable extends Migration
             $table->string('password');
             $table->string('phone');
             $table->string('address');
-            $table->integer('cart_id')->unsigned();
+            $table->integer('cart_id')->unsigned()->nullable(true); //nullable es para que pueda ser nulo
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();

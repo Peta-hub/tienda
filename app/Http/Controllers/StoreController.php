@@ -6,6 +6,7 @@ use App\Models\Product;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 
 class StoreController extends Controller
@@ -45,6 +46,7 @@ class StoreController extends Controller
             'image' => 'required',
             'image.*' => 'image|mimes:jpeg,png,jpg,gif,svg'
         ]);
+
 
         $product = new Product;
 
@@ -90,7 +92,9 @@ class StoreController extends Controller
      */
     public function show($id)
     {
-        return view('store.show', compact($id));
+        $product = Product::findOrFail($id);
+        $images = \App\Models\Image::all()->where('product_id', '=', $product);
+        return view('store.show', compact('product','images'));
     }
 
     /**
@@ -110,21 +114,79 @@ class StoreController extends Controller
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function update(Request $request, $id)
     {
-        //
+        $product = Product::findOrFail($id);
+
+        $product->name = $request->name;
+        $product->price = $request->price;
+        $product->stock = $request->stock;
+        $product->description = $request->description;
+        $product->status = $request->status;
+
+        if ($request->warranty == "yes") {
+            $product->warranty = true;
+        } else {
+            $product->warranty = false;
+        }
+
+        $product->update();
+
+        if(count($request->files) > 0) {
+            $images = \App\Models\Image::all()->where('product_id', '=', $id);
+
+            foreach ($images as $image) {
+                $exists = Storage::disk('local')->exists(storage_path('images/'.$image->url));
+                if ($exists) {
+                    Storage::delete(public_path('storage/images/'.$image->url));
+                    \App\Models\Image::destroy($image->id);
+                }
+            }
+
+            foreach ($request->image as $image) {
+
+                $name = $image->getClientOriginalName().'.'.$image->getClientOriginalExtension();
+                $url =  Hash::make($image->getClientOriginalName()).'.'.$image->getClientOriginalExtension();
+
+                Image::make($image)->save(public_path('images/'.$url));
+
+                $newImage = new \App\Models\Image;
+
+                $newImage->name = $name;
+                $newImage->url = $url;
+                $newImage->product_id = $product->id;
+
+                $newImage->save();
+            }
+        }
+        return redirect()->route('store.index');
     }
 
     /**
      * Remove the specified resource from storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy($id)
     {
-        //
+        $product = Product::findOrFail($id);
+
+        $images = \App\Models\Image::all()->where('product_id', '=', $id);
+
+        foreach ($images as $image) {
+            $exists = Storage::disk('local')->exists(storage_path('images/'.$image->url));
+            if ($exists) {
+                Storage::delete(public_path('storage/images/'.$image->url));
+                \App\Models\Image::destroy($image->id);
+            }
+        }
+
+        Product::destroy($product->id);
+
+        return redirect()->route('store.index');
+
     }
 }
